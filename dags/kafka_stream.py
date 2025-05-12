@@ -1,11 +1,12 @@
 from datetime import datetime
+import uuid
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 
 default_args = {
     'owner': 'airflow',
-    'start_date': datetime(2025, 05, 9, 18, 31),
+    'start_date': datetime(2025, 5, 9, 18, 31),
 }
 
 def get_data():
@@ -40,12 +41,21 @@ def stream_data():
     import json
     from kafka import KafkaProducer
     import time 
+    import logging
 
-    res = get_data()
-    res = format_data(res)
-
-    producer = KafkaProducer(bootstrap_servers= ['localhost:9092'], max_block_ms=5000)
-    producer.send('created_users', json.dumps(res).encode('utf-8'))
+    current_time = time.time()
+    producer = KafkaProducer(bootstrap_servers= ['broker:29092'], max_block_ms=5000)
+    while True:
+        if time.time() > current_time + 60:
+            break
+        try:
+            res = get_data()
+            res = format_data(res)
+            producer.send('users_created', json.dumps(res).encode('utf-8'))
+        except Exception as e:
+            logging.error(f"Error occurred: {e}")
+            continue
+        
 
 with DAG('user_automation', 
          default_args=default_args, 
@@ -58,4 +68,4 @@ with DAG('user_automation',
     )
 
 
-stream_data();
+# Removed the direct call to stream_data() which would run on import
